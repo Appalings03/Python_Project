@@ -2,3 +2,9 @@
 *.exe
 .vscode
 venv/
+*.mp4
+*.avi
+*.mkv
+*.mp3
+*.db
+*.raw

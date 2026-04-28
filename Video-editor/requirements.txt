@@ -1,0 +1,4 @@
+moviepy
+raylib==5.5.0.4
+numpy==2.2.6
+av==16.1.0
