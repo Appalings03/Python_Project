@@ -1,6 +1,6 @@
 numpy
 gymnasium
 mss
-cv2
+opencv-python
 pynput
 stable_baselines3
