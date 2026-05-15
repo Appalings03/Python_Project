@@ -1,0 +1,6 @@
+numpy
+gymnasium
+mss
+cv2
+pynput
+stable_baselines3
