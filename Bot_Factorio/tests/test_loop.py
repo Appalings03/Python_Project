@@ -21,8 +21,8 @@ from pynput.keyboard import Key, Controller as KeyboardController
 SCREEN_REGION = {
     "top":    0,
     "left":   0,
-    "width":  2560,
-    "height": 1600,
+    "width":  1280,
+    "height": 800,
 }
 
 OBS_SIZE     = (84, 84)      # taille de la frame réduite envoyée à l'agent
@@ -30,7 +30,7 @@ OVERLAY_SIZE = (960, 600)    # taille de la fenêtre de debug (≈ 37% de 2560x1
 STEP_DELAY   = 0.15          # secondes entre chaque action (~6-7 Hz)
 N_EPISODES   = 3             # nombre d'épisodes à jouer
 MAX_STEPS    = 50            # steps par épisode (court pour le test)
-WARMUP_S     = 3             # secondes avant de commencer (pour basculer sur Factorio)
+WARMUP_S     = 10             # secondes avant de commencer (pour basculer sur Factorio)
 
 # Actions discrètes testées
 ACTION_MAP = {
@@ -48,26 +48,27 @@ ACTION_MAP = {
 
 class Capture:
     def __init__(self):
-        self.sct = mss.mss()
-        self._last_raw = None
+        self.sct = mss.MSS()
+        self._last_latency = 0.0
 
     def grab(self) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Retourne (frame_obs, frame_display).
-        frame_obs     : (84, 84, 1) float32 normalisé — pour l'agent
-        frame_display : BGR 2560x1600 — pour l'overlay
-        """
         t0 = time.perf_counter()
+
+        # Capture pleine résolution pour l'overlay
         raw = self.sct.grab(SCREEN_REGION)
         bgr = cv2.cvtColor(np.array(raw), cv2.COLOR_BGRA2BGR)
         latency_ms = (time.perf_counter() - t0) * 1000
         self._last_latency = latency_ms
 
-        gray   = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        # Resize immédiat pour l'agent — évite de traîner une image 2560x1600
+        gray    = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
         resized = cv2.resize(gray, OBS_SIZE, interpolation=cv2.INTER_AREA)
         frame_obs = resized[..., np.newaxis].astype(np.float32) / 255.0
 
-        return frame_obs, bgr
+        # Pour l'overlay on resize aussi immédiatement pour libérer la mémoire
+        bgr_small = cv2.resize(bgr, OVERLAY_SIZE, interpolation=cv2.INTER_AREA)
+
+        return frame_obs, bgr_small  # on retourne déjà le small
 
     @property
     def last_latency_ms(self) -> float:
@@ -118,6 +119,8 @@ class DebugWindow:
     def __init__(self):
         cv2.namedWindow(self.WINDOW, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.WINDOW, *OVERLAY_SIZE)
+        # Forcer la fenêtre au premier plan sur Windows
+        cv2.setWindowProperty(self.WINDOW, cv2.WND_PROP_TOPMOST, 1)
 
     def render(
         self,
@@ -129,7 +132,7 @@ class DebugWindow:
         latency_ms:  float,
         step_time_ms: float,
     ):
-        display = cv2.resize(frame_bgr, OVERLAY_SIZE)
+        display = frame_bgr.copy()
 
         # ── Miniature de l'observation (ce que verra l'agent) ─────────────
         obs_vis = cv2.resize(

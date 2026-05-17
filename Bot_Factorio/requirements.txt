@@ -4,3 +4,4 @@ mss
 opencv-python
 pynput
 stable_baselines3
+pytesseract

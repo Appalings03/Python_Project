@@ -9,6 +9,8 @@ avec le paramètre résolu automatiquement par heuristique
 (ex: "aller au minerai le plus proche").
 """
 from enum import IntEnum
+from pynput.mouse import Button, Controller as MouseController
+from pynput.keyboard import Controller as KeyboardController
 
 class MacroAction(IntEnum):
     # Navigation
